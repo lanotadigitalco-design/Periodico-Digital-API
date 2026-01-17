@@ -52,4 +52,4 @@ ENV PORT=3001
 ENV NODE_ENV=production
 
 # Start the application
-CMD ["pnpm", "start:prod"]
+CMD ["node", "dist/main.js"]

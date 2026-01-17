@@ -11,7 +11,7 @@
     "start": "nest start",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/main.js",
     "db:check": "ts-node -r tsconfig-paths/register src/database/check-database.ts",
     "db:setup": "pnpm run db:check && pnpm run seed",
     "seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
