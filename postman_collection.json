@@ -1,0 +1,480 @@
+{
+  "info": {
+    "name": "API Noticias - NestJS",
+    "description": "Colección de Postman para probar la API de Noticias",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\",\n  \"nombre\": \"Admin\",\n  \"apellido\": \"Principal\",\n  \"rol\": \"administrador\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Periodista",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"periodista@test.com\",\n  \"password\": \"periodista123\",\n  \"nombre\": \"Juan\",\n  \"apellido\": \"Pérez\",\n  \"rol\": \"periodista\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Register Lector",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"lector@test.com\",\n  \"password\": \"lector123\",\n  \"nombre\": \"María\",\n  \"apellido\": \"González\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"token\", jsonData.token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"periodista@test.com\",\n  \"password\": \"periodista123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Articulos",
+      "item": [
+        {
+          "name": "Crear Artículo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"El Futuro de la Inteligencia Artificial\",\n  \"contenido\": \"La inteligencia artificial está revolucionando todas las industrias. Este artículo explora las tendencias actuales y futuras...\",\n  \"categoria\": \"Tecnología\",\n  \"imagenes\": [\"https://example.com/ai1.jpg\", \"https://example.com/ai2.jpg\"],\n  \"publicado\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/articulos",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos"]
+            }
+          }
+        },
+        {
+          "name": "Listar Artículos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/articulos",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Artículo por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/articulos/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos", "1"]
+            }
+          }
+        },
+        {
+          "name": "Buscar Artículos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/articulos/buscar?q=inteligencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos", "buscar"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "inteligencia"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Buscar por Autor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/articulos/buscar-autor?autor=Juan",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos", "buscar-autor"],
+              "query": [
+                {
+                  "key": "autor",
+                  "value": "Juan"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Artículo",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"El Futuro de la IA - ACTUALIZADO\",\n  \"contenido\": \"Contenido actualizado del artículo...\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/articulos/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos", "1"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Artículo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/articulos/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["articulos", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comentarios",
+      "item": [
+        {
+          "name": "Crear Comentario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"¡Excelente artículo! Muy informativo.\",\n  \"articuloId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["comentarios"]
+            }
+          }
+        },
+        {
+          "name": "Responder Comentario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Gracias por tu comentario!\",\n  \"articuloId\": 1,\n  \"comentarioPadreId\": \"UUID-DEL-COMENTARIO-PADRE\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/comentarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["comentarios"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Comentarios de Artículo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios/articulo/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["comentarios", "articulo", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Comentario",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contenido\": \"Comentario editado\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/comentarios/UUID-DEL-COMENTARIO",
+              "host": ["{{baseUrl}}"],
+              "path": ["comentarios", "UUID-DEL-COMENTARIO"]
+            }
+          }
+        },
+        {
+          "name": "Eliminar Comentario",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/comentarios/UUID-DEL-COMENTARIO",
+              "host": ["{{baseUrl}}"],
+              "path": ["comentarios", "UUID-DEL-COMENTARIO"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "Listar Usuarios (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios",
+              "host": ["{{baseUrl}}"],
+              "path": ["usuarios"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Usuario por ID (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["usuarios", "1"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar Usuario (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Nuevo Nombre\",\n  \"activo\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["usuarios", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs",
+      "item": [
+        {
+          "name": "Registrar Visualización Artículo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logs/articulo/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["logs", "articulo", "1"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Visualizaciones Artículo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logs/articulo/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["logs", "articulo", "1"]
+            }
+          }
+        },
+        {
+          "name": "Obtener Logs Sitio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logs/sitio",
+              "host": ["{{baseUrl}}"],
+              "path": ["logs", "sitio"]
+            }
+          }
+        },
+        {
+          "name": "Estadísticas Generales",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/logs/estadisticas",
+              "host": ["{{baseUrl}}"],
+              "path": ["logs", "estadisticas"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
