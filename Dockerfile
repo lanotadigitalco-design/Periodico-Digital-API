@@ -45,10 +45,10 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/ormconfig.ts ./ormconfig.ts
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3001
 
 # Set environment variable for port
-ENV PORT=3000
+ENV PORT=3001
 ENV NODE_ENV=production
 
 # Start the application
