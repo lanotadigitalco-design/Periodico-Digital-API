@@ -1,55 +1,41 @@
-# Stage 1: Build
-FROM node:20-alpine AS builder
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Set working directory
+# ---------- Stage 1: build ----------
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# Ensure crypto is available
-ENV NODE_OPTIONS="--no-warnings"
+# Enable pnpm via Corepack (mejor que instalar global)
+RUN corepack enable
 
-# Copy package files
+# Dependencies (con cache)
 COPY package.json pnpm-lock.yaml ./
-
-# Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
+# Source
 COPY . .
 
-# Build the application
+# Build -> genera dist/
 RUN pnpm run build
 
-# Stage 2: Production
-FROM node:20-alpine AS production
-
-# Install pnpm
-RUN npm install -g pnpm
-
-# Set working directory
+# ---------- Stage 2: production ----------
+FROM node:20-alpine AS prod
 WORKDIR /app
 
-# Ensure crypto is available
-ENV NODE_OPTIONS="--no-warnings"
+RUN corepack enable
 
-# Copy package files
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Solo deps de producción
 COPY package.json pnpm-lock.yaml ./
-
-# Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/ormconfig.ts ./ormconfig.ts
+# Copiamos el build + config que usas
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/ormconfig.ts ./ormconfig.ts
 
-# Expose port
+# (Opcional) si tienes assets estáticos, descomenta y ajusta
+# COPY --from=build /app/public ./public
+
 EXPOSE 3001
 
-# Set environment variable for port
-ENV PORT=3001
-ENV NODE_ENV=production
-
-# Start the application
+# Arranque directo (evita líos de scripts/paths)
 CMD ["node", "dist/src/main.js"]
