@@ -7,6 +7,9 @@ RUN npm install -g pnpm
 # Set working directory
 WORKDIR /app
 
+# Ensure crypto is available
+ENV NODE_OPTIONS="--no-warnings"
+
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
@@ -28,6 +31,9 @@ RUN npm install -g pnpm
 # Set working directory
 WORKDIR /app
 
+# Ensure crypto is available
+ENV NODE_OPTIONS="--no-warnings"
+
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
@@ -43,6 +49,7 @@ EXPOSE 5000
 
 # Set environment variable for port
 ENV PORT=5000
+ENV NODE_ENV=production
 
 # Start the application
-CMD ["node", "dist/main"]
+CMD ["pnpm", "start:prod"]
