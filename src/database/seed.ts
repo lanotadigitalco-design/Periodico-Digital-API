@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
 import { seedRoles } from './seed-roles';
+import { seedAdmin } from './seed-admin';
 
 // Entidades
 import { Usuario } from '../entities/usuario.entity';
@@ -41,6 +42,7 @@ async function runSeed() {
     console.log('📦 Conexión a la base de datos establecida');
 
     await seedRoles(AppDataSource);
+    await seedAdmin(AppDataSource);
 
     console.log('✅ Seed completado exitosamente');
     await AppDataSource.destroy();
