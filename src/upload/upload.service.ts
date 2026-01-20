@@ -36,7 +36,7 @@ export class UploadService {
       throw new Error('No files provided');
     }
 
-    const result = {
+    const result: { urls: string[]; filenames: string[] } = {
       urls: [],
       filenames: [],
     };
