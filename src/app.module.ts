@@ -1,6 +1,8 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import * as path from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -8,6 +10,7 @@ import { UsuariosModule } from './usuarios/usuarios.module';
 import { ArticulosModule } from './articulos/articulos.module';
 import { ComentariosModule } from './comentarios/comentarios.module';
 import { LiveStreamModule } from './live-stream/live-stream.module';
+import { UploadModule } from './upload/upload.module';
 /* import { LogsModule } from './logs/logs.module'; */
 
 // Entidades
@@ -24,6 +27,10 @@ import { LiveStream } from './entities/live-stream.entity';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: path.join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -53,6 +60,7 @@ import { LiveStream } from './entities/live-stream.entity';
     UsuariosModule,
     ArticulosModule,
     LiveStreamModule,
+    UploadModule,
     /* LogsModule, */
   ],
   controllers: [AppController],
