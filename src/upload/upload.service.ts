@@ -25,7 +25,7 @@ export class UploadService {
 
     return {
       filename,
-      url: `/uploads/${filename}`,
+      url: `/api/uploads/${filename}`,
     };
   }
 
@@ -48,7 +48,7 @@ export class UploadService {
       fs.writeFileSync(filepath, file.buffer);
 
       result.filenames.push(filename);
-      result.urls.push(`/uploads/${filename}`);
+      result.urls.push(`/api/uploads/${filename}`);
     });
 
     return result;

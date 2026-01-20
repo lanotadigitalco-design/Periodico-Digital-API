@@ -30,7 +30,7 @@ import { LiveStream } from './entities/live-stream.entity';
     }),
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
+      serveRoot: '/api/uploads',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
