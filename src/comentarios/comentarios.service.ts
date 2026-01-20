@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,21 +15,28 @@ import { UpdateComentarioDto } from './dto/update-comentario.dto';
 
 @Injectable()
 export class ComentariosService {
+  private readonly logger = new Logger(ComentariosService.name);
+
   constructor(
     @InjectRepository(Comentario)
     private comentarioRepository: Repository<Comentario>,
     @InjectRepository(Articulo)
     private articuloRepository: Repository<Articulo>,
-  ) {}
+  ) {
+    this.logger.log('ComentariosService inicializado');
+  }
 
   async create(createComentarioDto: CreateComentarioDto, usuario: Usuario) {
     const { articuloId, comentarioPadreId, contenido } = createComentarioDto;
+
+    this.logger.log(`Usuario ${usuario.email} crea comentario en artículo: ${articuloId}`);
 
     // Verificar que el artículo existe
     const articulo = await this.articuloRepository.findOne({
       where: { id: articuloId },
     });
     if (!articulo) {
+      this.logger.warn(`Intento de comentar en artículo inexistente: ${articuloId}`);
       throw new NotFoundException(
         `Artículo con ID ${articuloId} no encontrado`,
       );
@@ -47,22 +55,28 @@ export class ComentariosService {
       });
 
       if (!comentarioPadre) {
+        this.logger.warn(`Comentario padre ${comentarioPadreId} no encontrado`);
         throw new NotFoundException(
           `Comentario padre con ID ${comentarioPadreId} no encontrado`,
         );
       }
 
       comentario.padre = comentarioPadre;
+      this.logger.log(`Comentario será respuesta de comentario: ${comentarioPadreId}`);
     }
 
-    return this.comentarioRepository.save(comentario);
+    const saved = await this.comentarioRepository.save(comentario);
+    this.logger.log(`Comentario creado exitosamente con ID: ${saved.id}`);
+    return saved;
   }
 
   async findByArticulo(articuloId: number) {
+    this.logger.log(`Obteniendo comentarios del artículo: ${articuloId}`);
     const articulo = await this.articuloRepository.findOne({
       where: { id: articuloId },
     });
     if (!articulo) {
+      this.logger.warn(`Artículo ${articuloId} no encontrado`);
       throw new NotFoundException(
         `Artículo con ID ${articuloId} no encontrado`,
       );
@@ -82,16 +96,19 @@ export class ComentariosService {
       .addOrderBy('respuestas.createdAt', 'ASC')
       .getMany();
 
+    this.logger.log(`Se encontraron ${comentarios.length} comentarios principales para artículo: ${articuloId}`);
     return comentarios;
   }
 
   async findOne(id: string) {
+    this.logger.log(`Buscando comentario con ID: ${id}`);
     const comentario = await this.comentarioRepository.findOne({
       where: { id },
       relations: ['usuario', 'articulo', 'respuestas'],
     });
 
     if (!comentario) {
+      this.logger.warn(`Comentario con ID ${id} no encontrado`);
       throw new NotFoundException(`Comentario con ID ${id} no encontrado`);
     }
 
@@ -103,10 +120,12 @@ export class ComentariosService {
     updateComentarioDto: UpdateComentarioDto,
     usuario: Usuario,
   ) {
+    this.logger.log(`Usuario ${usuario.email} intenta actualizar comentario: ${id}`);
     const comentario = await this.findOne(id);
 
     // Solo el autor puede editar su comentario
     if (comentario.usuario.id !== usuario.id) {
+      this.logger.warn(`Usuario ${usuario.email} sin permisos para editar comentario: ${id}`);
       throw new ForbiddenException(
         'No tienes permisos para editar este comentario',
       );
@@ -114,10 +133,13 @@ export class ComentariosService {
 
     Object.assign(comentario, updateComentarioDto);
 
-    return this.comentarioRepository.save(comentario);
+    const updated = await this.comentarioRepository.save(comentario);
+    this.logger.log(`Comentario ${id} actualizado exitosamente`);
+    return updated;
   }
 
   async remove(id: string, usuario: Usuario) {
+    this.logger.log(`Usuario ${usuario.email} intenta eliminar comentario: ${id}`);
     const comentario = await this.findOne(id);
 
     // El autor o un administrador pueden eliminar el comentario
@@ -126,6 +148,7 @@ export class ComentariosService {
       usuario.rol.nombre === RolEnum.ADMINISTRADOR;
 
     if (!puedeEliminar) {
+      this.logger.warn(`Usuario ${usuario.email} sin permisos para eliminar comentario: ${id}`);
       throw new ForbiddenException(
         'No tienes permisos para eliminar este comentario',
       );
@@ -135,6 +158,7 @@ export class ComentariosService {
     comentario.visible = false;
     await this.comentarioRepository.save(comentario);
 
+    this.logger.log(`Comentario ${id} marcado como no visible por ${usuario.email}`);
     return { message: 'Comentario eliminado exitosamente' };
   }
 }

@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -16,6 +17,8 @@ import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(Usuario)
     private usuarioRepository: Repository<Usuario>,
@@ -24,16 +27,21 @@ export class AuthService {
     @InjectRepository(InformacionUsuario)
     private informacionUsuarioRepository: Repository<InformacionUsuario>,
     private jwtService: JwtService,
-  ) {}
+  ) {
+    this.logger.log('AuthService inicializado');
+  }
 
   async register(registerDto: RegisterDto) {
     const { email, password, nombre, apellido, rol } = registerDto;
+
+    this.logger.log(`Intento de registro para email: ${email}`);
 
     // Verificar si el usuario ya existe
     const usuarioExiste = await this.usuarioRepository.findOne({
       where: { email },
     });
     if (usuarioExiste) {
+      this.logger.warn(`Intento de registro con email ya existente: ${email}`);
       throw new BadRequestException('El email ya está registrado');
     }
 
@@ -67,6 +75,10 @@ export class AuthService {
       });
       await this.informacionUsuarioRepository.save(informacion);
 
+      this.logger.log(
+        `Usuario registrado exitosamente: ${email} (ID: ${usuario.id})`,
+      );
+
       // Generar token
       const token = this.generateToken(usuario);
 
@@ -80,13 +92,16 @@ export class AuthService {
         },
         token,
       };
-    } catch {
+    } catch (error) {
+      this.logger.error(`Error al crear usuario ${email}: ${error.message}`);
       throw new InternalServerErrorException('Error al crear el usuario');
     }
   }
 
   async login(loginDto: LoginDto, ip?: string, userAgent?: string) {
     const { email, password } = loginDto;
+
+    this.logger.log(`Intento de login para email: ${email} desde IP: ${ip}`);
 
     // Buscar usuario
     const usuario = await this.usuarioRepository.findOne({
@@ -95,10 +110,12 @@ export class AuthService {
     });
 
     if (!usuario) {
+      this.logger.warn(`Intento de login con email no existente: ${email}`);
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
     if (!usuario.activo) {
+      this.logger.warn(`Intento de login con usuario desactivado: ${email}`);
       throw new UnauthorizedException('Usuario desactivado');
     }
 
@@ -106,6 +123,7 @@ export class AuthService {
     const passwordValida = await bcrypt.compare(password, usuario.password);
 
     if (!passwordValida) {
+      this.logger.warn(`Contraseña inválida para usuario: ${email}`);
       // Registrar intento fallido
       await this.registrarIntentoFallido(usuario);
       throw new UnauthorizedException('Credenciales inválidas');
@@ -113,6 +131,8 @@ export class AuthService {
 
     // Actualizar información de sesión
     await this.actualizarInformacionSesion(usuario, ip, userAgent);
+
+    this.logger.log(`Login exitoso para usuario: ${email} (ID: ${usuario.id})`);
 
     // Generar token
     const token = this.generateToken(usuario);
