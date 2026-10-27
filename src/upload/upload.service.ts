@@ -1,44 +1,87 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
+import { ConfigService } from '@nestjs/config';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { v4 as uuidv4 } from 'uuid';
+
+// sharp publica declaraciones duales (ESM/CJS) que TS resuelve de forma
+// ambigua bajo moduleResolution "node10"; se usa require directo.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sharp = require('sharp');
 
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
-  private readonly uploadsDir = path.join(process.cwd(), 'uploads');
 
-  constructor() {
-    // Crear directorio si no existe
-    if (!fs.existsSync(this.uploadsDir)) {
-      fs.mkdirSync(this.uploadsDir, { recursive: true });
-      this.logger.log(`Directorio de uploads creado: ${this.uploadsDir}`);
-    }
-    this.logger.log('UploadService inicializado');
+  constructor(private readonly configService: ConfigService) {
+    cloudinary.config({
+      cloud_name: this.configService.get<string>('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get<string>('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get<string>('CLOUDINARY_API_SECRET'),
+    });
+    this.logger.log('UploadService inicializado (Cloudinary)');
   }
 
-  uploadFile(file: Express.Multer.File): { url: string; filename: string } {
+  private async toWebp(buffer: Buffer): Promise<Buffer> {
+    return sharp(buffer).webp({ quality: 80 }).toBuffer();
+  }
+
+  private uploadBuffer(buffer: Buffer): Promise<UploadApiResponse> {
+    // public_id sin "/" a propósito: el frontend trata los identificadores
+    // de imagen como nombres planos (split("/").pop()) en varios lugares.
+    const publicId = `articulo-${uuidv4()}`;
+
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          public_id: publicId,
+          format: 'webp',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error || !result) {
+            reject(error ?? new Error('Falló la subida a Cloudinary'));
+            return;
+          }
+          resolve(result);
+        },
+      );
+      stream.end(buffer);
+    });
+  }
+
+  getPublicUrl(publicId: string): string {
+    return cloudinary.url(publicId, {
+      resource_type: 'image',
+      format: 'webp',
+      secure: true,
+    });
+  }
+
+  async uploadFile(
+    file: Express.Multer.File,
+  ): Promise<{ url: string; filename: string }> {
     if (!file) {
       this.logger.error('Intento de subir archivo sin proporcionar archivo');
       throw new Error('No file provided');
     }
 
-    const filename = `${Date.now()}-${file.originalname}`;
-    const filepath = path.join(this.uploadsDir, filename);
-
-    this.logger.log(`Subiendo archivo: ${filename} (${file.size} bytes)`);
-    fs.writeFileSync(filepath, file.buffer);
-    this.logger.log(`Archivo subido exitosamente: ${filename}`);
+    this.logger.log(
+      `Procesando imagen: ${file.originalname} (${file.size} bytes)`,
+    );
+    const webpBuffer = await this.toWebp(file.buffer);
+    const result = await this.uploadBuffer(webpBuffer);
+    this.logger.log(`Imagen subida a Cloudinary: ${result.public_id}`);
 
     return {
-      filename,
-      url: `/api/uploads/${filename}`,
+      url: result.secure_url,
+      filename: result.public_id,
     };
   }
 
-  uploadMultiple(files: Express.Multer.File[]): {
+  async uploadMultiple(files: Express.Multer.File[]): Promise<{
     urls: string[];
     filenames: string[];
-  } {
+  }> {
     if (!files || files.length === 0) {
       this.logger.error(
         'Intento de subir múltiples archivos sin proporcionar archivos',
@@ -47,109 +90,54 @@ export class UploadService {
     }
 
     this.logger.log(`Subiendo ${files.length} archivos`);
-    const result: { urls: string[]; filenames: string[] } = {
-      urls: [],
-      filenames: [],
-    };
-
-    files.forEach((file, index) => {
-      const filename = `${Date.now()}-${Math.random()}-${file.originalname}`;
-      const filepath = path.join(this.uploadsDir, filename);
-
-      fs.writeFileSync(filepath, file.buffer);
-      this.logger.log(
-        `Archivo ${index + 1}/${files.length} subido: ${filename}`,
-      );
-
-      result.filenames.push(filename);
-      result.urls.push(`/api/uploads/${filename}`);
-    });
-
-    this.logger.log(`${files.length} archivos subidos exitosamente`);
-    return result;
-  }
-
-  getFile(filename: string): { file: Buffer; mimetype: string } {
-    const filepath = path.join(this.uploadsDir, filename);
-
-    this.logger.log(`Intentando recuperar archivo: ${filename}`);
-    if (!fs.existsSync(filepath)) {
-      this.logger.error(`Archivo no encontrado: ${filename}`);
-      throw new Error('Archivo no encontrado');
-    }
-
-    const file = fs.readFileSync(filepath);
-    const ext = path.extname(filename).toLowerCase();
-    const mimetypes: { [key: string]: string } = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.svg': 'image/svg+xml',
-    };
-
-    this.logger.log(
-      `Archivo recuperado exitosamente: ${filename} (${file.length} bytes)`,
+    const results = await Promise.all(
+      files.map((file) => this.uploadFile(file)),
     );
+    this.logger.log(`${files.length} archivos subidos exitosamente`);
+
     return {
-      file,
-      mimetype: mimetypes[ext] || 'application/octet-stream',
+      urls: results.map((r) => r.url),
+      filenames: results.map((r) => r.filename),
     };
   }
 
-  getMultipleFiles(
-    filenames: string[],
-  ): Array<{ filename: string; file: Buffer; mimetype: string }> {
-    this.logger.log(`Recuperando ${filenames.length} archivos`);
-    const result = filenames.map((filename) => {
-      const { file, mimetype } = this.getFile(filename);
-      return { filename, file, mimetype };
+  async deleteFile(publicId: string): Promise<{ message: string }> {
+    this.logger.log(`Eliminando imagen de Cloudinary: ${publicId}`);
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
     });
-    this.logger.log(`${filenames.length} archivos recuperados exitosamente`);
-    return result;
-  }
 
-  deleteFile(filename: string): { message: string } {
-    const filepath = path.join(this.uploadsDir, filename);
-
-    this.logger.log(`Intentando eliminar archivo: ${filename}`);
-    if (!fs.existsSync(filepath)) {
-      this.logger.error(`Archivo no encontrado para eliminar: ${filename}`);
-      throw new Error('Archivo no encontrado');
+    if (result.result !== 'ok' && result.result !== 'not found') {
+      this.logger.error(
+        `Error al eliminar imagen ${publicId}: ${result.result}`,
+      );
+      throw new Error(`No se pudo eliminar la imagen: ${result.result}`);
     }
 
-    fs.unlinkSync(filepath);
-    this.logger.log(`Archivo eliminado exitosamente: ${filename}`);
-    return { message: `Archivo ${filename} eliminado correctamente` };
+    this.logger.log(`Imagen eliminada exitosamente: ${publicId}`);
+    return { message: `Imagen ${publicId} eliminada correctamente` };
   }
 
-  deleteMultipleFiles(filenames: string[]): {
+  async deleteMultipleFiles(publicIds: string[]): Promise<{
     message: string;
     deleted: string[];
-  } {
-    this.logger.log(`Intentando eliminar ${filenames.length} archivos`);
+  }> {
+    this.logger.log(`Intentando eliminar ${publicIds.length} imágenes`);
     const deleted: string[] = [];
 
-    filenames.forEach((filename) => {
+    for (const publicId of publicIds) {
       try {
-        const filepath = path.join(this.uploadsDir, filename);
-        if (fs.existsSync(filepath)) {
-          fs.unlinkSync(filepath);
-          deleted.push(filename);
-          this.logger.log(`Archivo eliminado: ${filename}`);
-        } else {
-          this.logger.warn(`Archivo no encontrado: ${filename}`);
-        }
+        await this.deleteFile(publicId);
+        deleted.push(publicId);
       } catch (error) {
         this.logger.error(
-          `Error al eliminar archivo ${filename}: ${error.message}`,
+          `Error al eliminar imagen ${publicId}: ${error.message}`,
         );
       }
-    });
+    }
 
     this.logger.log(
-      `${deleted.length}/${filenames.length} archivos eliminados exitosamente`,
+      `${deleted.length}/${publicIds.length} imágenes eliminadas exitosamente`,
     );
     return {
       message: `${deleted.length} archivo(s) eliminado(s) correctamente`,

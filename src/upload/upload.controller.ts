@@ -9,9 +9,8 @@ import {
   UseGuards,
   BadRequestException,
   Param,
-  Res,
-  NotFoundException,
   Body,
+  Res,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
@@ -48,14 +47,16 @@ export class UploadController {
   )
   @ApiBearerAuth('JWT-auth')
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Subir una imagen' })
+  @ApiOperation({
+    summary: 'Subir una imagen (se convierte a WebP y se aloja en Cloudinary)',
+  })
   @ApiResponse({
     status: 201,
     description: 'Imagen subida exitosamente',
     schema: {
       example: {
-        url: '/uploads/1705700000000-imagen.jpg',
-        filename: '1705700000000-imagen.jpg',
+        url: 'https://res.cloudinary.com/demo/image/upload/v1/articulos/imagen.webp',
+        filename: 'articulos/imagen',
       },
     },
   })
@@ -83,17 +84,20 @@ export class UploadController {
   )
   @ApiBearerAuth('JWT-auth')
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Subir múltiples imágenes' })
+  @ApiOperation({
+    summary:
+      'Subir múltiples imágenes (se convierten a WebP y se alojan en Cloudinary)',
+  })
   @ApiResponse({
     status: 201,
     description: 'Imágenes subidas exitosamente',
     schema: {
       example: {
         urls: [
-          '/uploads/1705700000000-imagen1.jpg',
-          '/uploads/1705700001000-imagen2.jpg',
+          'https://res.cloudinary.com/demo/image/upload/v1/articulos/imagen1.webp',
+          'https://res.cloudinary.com/demo/image/upload/v1/articulos/imagen2.webp',
         ],
-        filenames: ['1705700000000-imagen1.jpg', '1705700001000-imagen2.jpg'],
+        filenames: ['articulos/imagen1', 'articulos/imagen2'],
       },
     },
   })
@@ -104,85 +108,55 @@ export class UploadController {
   }
 
   @Get('image/:filename')
-  @ApiOperation({ summary: 'Recuperar una imagen' })
-  @ApiResponse({
-    status: 200,
-    description: 'Imagen recuperada exitosamente',
+  @ApiOperation({
+    summary:
+      'Redirige a la URL de Cloudinary de la imagen (compatibilidad con enlaces existentes)',
   })
-  @ApiResponse({ status: 404, description: 'Imagen no encontrada' })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirección a la imagen alojada en Cloudinary',
+  })
   getImage(@Param('filename') filename: string, @Res() res: Response) {
-    try {
-      const { file, mimetype } = this.uploadService.getFile(filename);
-      res.set('Content-Type', mimetype);
-      res.send(file);
-    } catch (error) {
-      throw new NotFoundException('Imagen no encontrada');
-    }
-  }
-
-  @Post('images/multiple')
-  @ApiOperation({ summary: 'Recuperar múltiples imágenes' })
-  @ApiResponse({
-    status: 200,
-    description: 'Imágenes recuperadas exitosamente',
-    schema: {
-      example: [
-        {
-          filename: '1705700000000-imagen1.jpg',
-          data: 'base64_encoded_data',
-          mimetype: 'image/jpeg',
-        },
-      ],
-    },
-  })
-  @ApiResponse({ status: 400, description: 'Solicitud inválida' })
-  getMultipleImages(@Body() body: { filenames: string[] }) {
-    try {
-      const files = this.uploadService.getMultipleFiles(body.filenames);
-      return files.map((file) => ({
-        filename: file.filename,
-        data: file.file.toString('base64'),
-        mimetype: file.mimetype,
-      }));
-    } catch (error) {
-      throw new BadRequestException('Error al recuperar las imágenes');
-    }
+    res.redirect(this.uploadService.getPublicUrl(filename));
   }
 
   @Delete('image/:filename')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Eliminar una imagen' })
+  @ApiOperation({
+    summary:
+      'Eliminar una imagen de Cloudinary (filename = public_id, URL-encoded)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Imagen eliminada exitosamente',
     schema: {
       example: {
-        message: 'Archivo 1705700000000-imagen.jpg eliminado correctamente',
+        message: 'Imagen articulos/imagen eliminada correctamente',
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Imagen no encontrada' })
+  @ApiResponse({ status: 400, description: 'No se pudo eliminar la imagen' })
   @ApiResponse({ status: 401, description: 'No autorizado' })
-  deleteImage(@Param('filename') filename: string) {
+  async deleteImage(@Param('filename') filename: string) {
     try {
-      return this.uploadService.deleteFile(filename);
+      return await this.uploadService.deleteFile(filename);
     } catch (error) {
-      throw new NotFoundException('Imagen no encontrada');
+      throw new BadRequestException('No se pudo eliminar la imagen');
     }
   }
 
   @Delete('images/batch')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Eliminar múltiples imágenes' })
+  @ApiOperation({ summary: 'Eliminar múltiples imágenes de Cloudinary' })
   @ApiResponse({
     status: 200,
     description: 'Imágenes eliminadas exitosamente',
     schema: {
       example: {
         message: '2 archivo(s) eliminado(s) correctamente',
-        deleted: ['1705700000000-imagen1.jpg', '1705700001000-imagen2.jpg'],
+        deleted: ['articulos/imagen1', 'articulos/imagen2'],
       },
     },
   })
